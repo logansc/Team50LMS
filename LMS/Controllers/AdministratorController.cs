@@ -125,14 +125,59 @@ namespace LMS.Controllers
     /// a Class offering of the same Course in the same Semester.</returns>
     public IActionResult CreateClass(string subject, int number, string season, int year, DateTime start, DateTime end, string location, string instructor)
     {
-      var query = 
+      // Convert to values usable in our DB
+      TimeSpan startTime = start.TimeOfDay;
+      TimeSpan endTime = end.TimeOfDay;
+
+      // Check for conflicting classes
+      var query1 =
         from c in db.Class
-        
+        join r in db.Course
+        on c.CourseId equals r.CourseId
+        where (c.StartTime < endTime && c.EndTime > startTime) || //!(c.EndTime < startTime && c.EndTime < endTime) ||
+        r.Abrv == subject &&
+        r.CNumber == number && 
+        c.SemesterSeason == season &&
+        c.SemesterYear == year        
+        select new
+        {
+          conflictingClass = c
+        };
 
+      // If the query found results, there is at least one conflicting class
+      if (query1.Any())
+      {
+        return Json(new { success = false });
+      }
+      else
+      {
+        // Otherwise get the courseID so we can use it in creating the class
+        var query2 =
+          (from r in db.Course
+          where r.Abrv == subject
+          where r.CNumber == number
+          select new
+          {
+            courseID = r.CourseId
+          }).FirstOrDefault();
 
-      Class lmsClass = new Class() { };
+        Class lmsClass = new Class() 
+        {
+          SemesterYear = (uint)year,
+          SemesterSeason = season,
+          StartTime = start.TimeOfDay,
+          EndTime = end.TimeOfDay,
+          Location = location,
+          UId = instructor,
+          CourseId = query2.courseID
+         };
 
-      return Json(new { success = false });
+        db.Class.Add(lmsClass);
+        db.SaveChanges();
+
+        return Json(new { success = true });
+      }
+
     }
 
 
