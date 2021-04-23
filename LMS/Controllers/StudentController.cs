@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using LMS.Models.LMSModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -157,8 +158,49 @@ namespace LMS.Controllers
     public IActionResult SubmitAssignmentText(string subject, int num, string season, int year, 
       string category, string asgname, string uid, string contents)
     {
-     
-      return Json(new { success = false });
+      try
+      {
+        var query = (
+          from sub in db.Submissions
+          join asg in db.Assignments
+          on sub.Assignment equals asg.AsnId
+          join asc in db.AssignmentCat
+          on asg.AcId equals asc.AcId
+          join cls in db.Class
+          on asc.ClassId equals cls.ClassId
+          join crs in db.Course
+          on cls.CourseId equals crs.CourseId
+          where crs.Abrv == subject
+          where crs.CNumber == num
+          where cls.SemesterSeason == season
+          where cls.SemesterYear == year
+          where asc.CatName == category
+          where asg.AName == asgname
+          select new
+          {
+            assignmentId = asg.AsnId
+          }).FirstOrDefault();
+
+
+        Submissions submission = new Submissions()
+        {
+          Assignment = query.assignmentId,
+          Student = uid,
+          Score = 0,
+          SubmissionContents = contents,
+          Time = DateTime.Now
+        };
+
+        db.Submissions.Add(submission);
+        db.SaveChanges();
+        return Json(new { success = true });
+
+      }
+      catch
+      {
+        return Json(new { success = false });
+      }
+
     }
 
     
@@ -173,9 +215,39 @@ namespace LMS.Controllers
     /// <returns>A JSON object containing {success = {true/false},
 	/// false if the student is already enrolled in the Class.</returns>
     public IActionResult Enroll(string subject, int num, string season, int year, string uid)
-    {      
+    {
 
-      return Json(new { success = false });
+      try
+      {
+        var query = (
+          from cls in db.Class
+          join crs in db.Course
+          on cls.CourseId equals crs.CourseId
+          where crs.Abrv == subject
+          where crs.CNumber == num
+          where cls.SemesterSeason == season
+          where cls.SemesterYear == year
+          select new
+          {
+            classId = cls.ClassId
+          }).FirstOrDefault();
+
+        Enroll enrollment = new Enroll()
+        {
+          Grade = "A",
+          UId = uid,
+          ClassId = query.classId
+        };
+
+        db.Add(enrollment);
+        db.SaveChanges();
+        return Json(new { success = true });
+
+      }
+      catch
+      {
+        return Json(new { success = false });
+      }
     }
 
 
