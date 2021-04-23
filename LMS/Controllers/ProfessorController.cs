@@ -348,12 +348,12 @@ namespace LMS.Controllers
             select new
             {
 
-              c = cat.ClassId
+              c = cat.AcId
             };
 
         foreach (var q in query2)
         {
-          catId = q.c;
+          catId = (int)q.c;
         }
 
 
@@ -371,7 +371,7 @@ namespace LMS.Controllers
 
 
       }
-      catch (Exception)
+      catch (Exception e)
       {
 
         return Json(new { success = false });

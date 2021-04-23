@@ -1,0 +1,14 @@
+.vs/LMS/v16/.suo
+LMS/Controllers/AdministratorController.cs
+LMS/Controllers/StudentController.cs
+LMS/bin/Debug/netcoreapp2.2/LMS.Views.dll
+LMS/bin/Debug/netcoreapp2.2/LMS.Views.pdb
+LMS/bin/Debug/netcoreapp2.2/LMS.dll
+LMS/bin/Debug/netcoreapp2.2/LMS.pdb
+LMS/obj/Debug/netcoreapp2.2/LMS.Views.dll
+LMS/obj/Debug/netcoreapp2.2/LMS.Views.pdb
+LMS/obj/Debug/netcoreapp2.2/LMS.csprojAssemblyReference.cache
+LMS/obj/Debug/netcoreapp2.2/LMS.dll
+LMS/obj/Debug/netcoreapp2.2/LMS.pdb
+LMS/bin/Release/
+LMS/obj/Release/

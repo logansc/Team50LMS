@@ -53,7 +53,6 @@ namespace LMS.Controllers
       return Json(query.ToArray());
     }
 
-
    
     /// <summary>
     /// Returns a JSON array of all the professors working in a given department.
@@ -125,6 +124,15 @@ namespace LMS.Controllers
     /// a Class offering of the same Course in the same Semester.</returns>
     public IActionResult CreateClass(string subject, int number, string season, int year, DateTime start, DateTime end, string location, string instructor)
     {
+      var query3 = (
+        from cls in db.Class
+        select new
+        {
+          classID = cls.ClassId
+        }).Max(c => c.classID);
+
+      int newClassId = query3 + 1;
+
       // Convert to values usable in our DB
       TimeSpan startTime = start.TimeOfDay;
       TimeSpan endTime = end.TimeOfDay;
@@ -134,11 +142,12 @@ namespace LMS.Controllers
         from c in db.Class
         join r in db.Course
         on c.CourseId equals r.CourseId
-        where (c.StartTime < endTime && c.EndTime > startTime) || //!(c.EndTime < startTime && c.EndTime < endTime) ||
-        r.Abrv == subject &&
-        r.CNumber == number && 
+        where (c.StartTime < endTime && c.EndTime > startTime) &&
         c.SemesterSeason == season &&
-        c.SemesterYear == year        
+        c.SemesterYear == year &&
+        c.Location == location ||
+        r.Abrv == subject &&
+        r.CNumber == number      
         select new
         {
           conflictingClass = c
@@ -161,8 +170,10 @@ namespace LMS.Controllers
             courseID = r.CourseId
           }).FirstOrDefault();
 
+        // Create class
         Class lmsClass = new Class() 
         {
+          ClassId = newClassId,
           SemesterYear = (uint)year,
           SemesterSeason = season,
           StartTime = start.TimeOfDay,

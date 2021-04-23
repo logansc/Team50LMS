@@ -104,7 +104,11 @@ namespace LMS.Controllers
     /// <returns>The JSON array</returns>
     public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
     {
-      var query =
+
+
+
+
+      /*var query =
         from c in db.Class
         join r in db.Course
         on c.CourseId equals r.CourseId
@@ -113,21 +117,35 @@ namespace LMS.Controllers
         join asn in db.Assignments
         on a.AcId equals asn.AcId
         join e in db.Enroll
-        on c.ClassId equals e.ClassId
-        where r.AbrvNavigation.DName == subject
-        where r.CNumber == num
-        where c.SemesterSeason == season
-        where c.SemesterYear == year
-        where e.UId == uid
+        on c.ClassId equals e.ClassId*/
+      var query =
+        from enr in db.Enroll
+        join cls in db.Class
+        on enr.UId equals cls.UId
+        join crs in db.Course
+        on cls.CourseId equals crs.CourseId
+        join asc in db.AssignmentCat
+        on cls.ClassId equals asc.ClassId
+        join asg in db.Assignments
+        on asc.AcId equals asg.AcId
+        join sub in db.Submissions
+        on asg.AsnId equals sub.Assignment
+
+        where crs.AbrvNavigation.DName == subject
+        where crs.CNumber == num
+        where cls.SemesterSeason == season
+        where cls.SemesterYear == year
+        where enr.UId == uid
         select new
         {
-          aname = asn.AName,
-          cname = a.CatName,
-          due = asn.DueDate,
-          score = from sc in db.Submissions
+          aname = asg.AName,
+          cname = asc.CatName,
+          due = asg.DueDate,
+          score = sub.Score
+          /*score = from sc in db.Submissions
             where sc.Student == uid
-            where sc.Assignment == a.AcId
-            select sc.Score
+            where sc.Assignment == asc.AcId
+            select sc.Score*/
         };
 
 
@@ -234,7 +252,7 @@ namespace LMS.Controllers
 
         Enroll enrollment = new Enroll()
         {
-          Grade = "A",
+          Grade = "--",
           UId = uid,
           ClassId = query.classId
         };
@@ -317,8 +335,14 @@ namespace LMS.Controllers
           case "E":
             gradeSum += 0.0;
             break;
+          default:
+            gradeCount--; // Compensate for the gradeCount++ above, since we are not adding a grade to the sum.
+            break;
         }
       }
+
+      if (gradeCount == 0)
+        return Json(new { gpa = 0 });
 
       double GPA = gradeSum / gradeCount;
       return Json(new { gpa = GPA });
