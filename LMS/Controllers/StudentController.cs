@@ -103,54 +103,34 @@ namespace LMS.Controllers
     /// <param name="uid"></param>
     /// <returns>The JSON array</returns>
     public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
-    {
+    {       
+      var query1 =
+        from e in db.Enroll
+        where e.UId == uid &&
+        e.Class.SemesterSeason == season &&
+        e.Class.SemesterYear == year &&
+        e.Class.Course.Abrv == subject &&
+        e.Class.Course.CNumber == num
+        from a in db.Assignments
+        where a.Ac.ClassId == e.Class.ClassId
+        select a;
 
-
-
-
-      /*var query =
-        from c in db.Class
-        join r in db.Course
-        on c.CourseId equals r.CourseId
-        join a in db.AssignmentCat
-        on c.ClassId equals a.ClassId
-        join asn in db.Assignments
-        on a.AcId equals asn.AcId
-        join e in db.Enroll
-        on c.ClassId equals e.ClassId*/
-      var query =
-        from enr in db.Enroll
-        join cls in db.Class
-        on enr.UId equals cls.UId
-        join crs in db.Course
-        on cls.CourseId equals crs.CourseId
-        join asc in db.AssignmentCat
-        on cls.ClassId equals asc.ClassId
-        join asg in db.Assignments
-        on asc.AcId equals asg.AcId
-        join sub in db.Submissions
-        on asg.AsnId equals sub.Assignment
-
-        where crs.AbrvNavigation.DName == subject
-        where crs.CNumber == num
-        where cls.SemesterSeason == season
-        where cls.SemesterYear == year
-        where enr.UId == uid
+        var query2 =
+        from q in query1
+        join s in db.Submissions
+        on new { A = q.AsnId, B = uid } equals new { A = s.Assignment, B = s.Student }
+        into joined
+        from j in joined.DefaultIfEmpty()
         select new
         {
-          aname = asg.AName,
-          cname = asc.CatName,
-          due = asg.DueDate,
-          score = sub.Score
-          /*score = from sc in db.Submissions
-            where sc.Student == uid
-            where sc.Assignment == asc.AcId
-            select sc.Score*/
+          aname = q.AName,
+          cname = q.Ac.CatName,
+          due = q.DueDate,
+          score = j == null ? null : (uint?)j.Score
         };
 
-
-
-      return Json(query.ToArray());
+        return Json(query2.ToArray());
+   
     }
 
 
@@ -166,7 +146,7 @@ namespace LMS.Controllers
     /// </summary>
     /// <param name="subject">The course subject abbreviation</param>
     /// <param name="num">The course number</param>
-    /// <param name="season">The season part of the semester for the class the assignment belongs to</param>
+    /// <param name=" season">The season part of the semester for the class the assignment belongs to</param>
     /// <param name="year">The year part of the semester for the class the assignment belongs to</param>
     /// <param name="category">The name of the assignment category in the class</param>
     /// <param name="asgname">The new assignment name</param>
@@ -179,9 +159,7 @@ namespace LMS.Controllers
       try
       {
         var query = (
-          from sub in db.Submissions
-          join asg in db.Assignments
-          on sub.Assignment equals asg.AsnId
+          from asg in db.Assignments
           join asc in db.AssignmentCat
           on asg.AcId equals asc.AcId
           join cls in db.Class
@@ -199,7 +177,22 @@ namespace LMS.Controllers
             assignmentId = asg.AsnId
           }).FirstOrDefault();
 
+        // Check if there's already a submission
+        var query2 = (
+          from sub in db.Submissions
+          where sub.Student == uid
+          where sub.Assignment == query.assignmentId
+          select sub).FirstOrDefault();
 
+        // If there's already a submission, just change the contents
+        if (query2 != null)
+        {
+          query2.SubmissionContents = contents;
+          db.SaveChanges();
+          return Json(new { success = true });
+        }
+
+        // If there's no submission, create a new one
         Submissions submission = new Submissions()
         {
           Assignment = query.assignmentId,
@@ -295,49 +288,12 @@ namespace LMS.Controllers
       int gradeCount = 0;
       foreach (var row in query)
       {
-        gradeCount++;
+        double? numberGrade = ControllerHelpers.letterToNumberGrade(row.grade);
 
-        switch (row.grade)
+        if (!(numberGrade is null))
         {
-          case "A":
-            gradeSum += 4.0;
-            break;
-          case "A-":
-            gradeSum += 3.7;
-            break;
-          case "B+":
-            gradeSum += 3.3;
-            break;
-          case "B":
-            gradeSum += 3.0;
-            break;
-          case "B-":
-            gradeSum += 2.7;
-            break;
-          case "C+":
-            gradeSum += 2.3;
-            break;
-          case "C":
-            gradeSum += 2.0;
-            break;
-          case "C-":
-            gradeSum += 1.7;
-            break;
-          case "D+":
-            gradeSum += 1.3;
-            break;
-          case "D":
-            gradeSum += 1.0;
-            break;
-          case "D-":
-            gradeSum += 0.7;
-            break;
-          case "E":
-            gradeSum += 0.0;
-            break;
-          default:
-            gradeCount--; // Compensate for the gradeCount++ above, since we are not adding a grade to the sum.
-            break;
+          gradeCount++;
+          gradeSum += (double)numberGrade;
         }
       }
 

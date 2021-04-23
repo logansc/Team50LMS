@@ -448,6 +448,7 @@ namespace LMS.Controllers
     {
       try
       {
+        // Query to get necesasry data
         var query = (
           from sub in db.Submissions
           join asg in db.Assignments
@@ -470,21 +471,88 @@ namespace LMS.Controllers
             assignmentId = asg.AsnId,
             studentId = sub.Student,
             submissionContents = sub.SubmissionContents,
-            time = sub.Time
+            time = sub.Time,
+            classID = cls.ClassId
           }).FirstOrDefault();
 
-        Submissions gradedSubmission = new Submissions()
-        {
-          Assignment = query.assignmentId,
-          Student = uid,
-          Score = (uint)score,
-          SubmissionContents = query.submissionContents,
-          Time = query.time
-        };
+        // If prof is trying to grade the submission we already know it exists, so just modify and save it
+        var query2 = (
+          from sub in db.Submissions
+          where sub.Student == uid
+          where sub.Assignment == query.assignmentId
+          select sub).FirstOrDefault();
 
-
-        db.Add(gradedSubmission);
+        query2.Score = (uint)score;
         db.SaveChanges();
+
+
+
+        // Update student's overall grade - first get all their scores
+        var query3 =
+          from sub in db.Submissions
+          join asg in db.Assignments
+          on sub.Assignment equals asg.AsnId
+          join asc in db.AssignmentCat
+          on asg.AcId equals asc.AcId
+          where query.classID == asc.ClassId
+          select new
+          {
+            score = sub.Score,
+            assignmentCategory = asg.AcId,
+            maxScore = asg.PointValue
+          };
+
+        // Next we need the different assignment categories
+        var query4 =
+          from asc in db.AssignmentCat
+          select new
+          {
+            assignmentCategory = asc.AcId,
+            gradeWeight = asc.GradeWeight
+          };
+
+        // Now the actual calculation
+        double weightedCategoryScoreSum = 0;
+        double categoryWeightsSum = 0;
+
+        foreach (var a in query4)  
+        {
+
+          double totalPointsEarned = 0;
+          double totalPointsPossible = 0;
+          foreach (var s in query3)
+          {
+            if (s.assignmentCategory == a.assignmentCategory)
+            {
+              totalPointsEarned += s.score;
+              totalPointsPossible += s.maxScore;
+            }
+          }
+
+          if (totalPointsPossible > 0)
+          {
+            categoryWeightsSum += a.gradeWeight;
+
+            double weightedCategoryScore = a.gradeWeight * (totalPointsEarned / totalPointsPossible);
+            weightedCategoryScoreSum += weightedCategoryScore;
+          }
+     
+        }
+        double scalingFactor = 100 / categoryWeightsSum;
+        double overallGradePercent = weightedCategoryScoreSum * scalingFactor;
+
+        // Update the db with the new value
+        var query5 = (
+          from enr in db.Enroll
+          join cls in db.Class
+          on enr.ClassId equals cls.ClassId
+          where enr.UId == uid
+          where cls.ClassId == query.classID
+          select enr).FirstOrDefault();
+
+        query5.Grade = ControllerHelpers.numberToLetterGrade(overallGradePercent);
+        db.SaveChanges();
+
         return Json(new { success = true });
       }
       catch
@@ -511,7 +579,8 @@ namespace LMS.Controllers
       var query =
        from cls in db.Class
        join crs in db.Course
-       on cls.UId equals uid
+       on cls.CourseId equals crs.CourseId
+       where cls.UId == uid
        select new
        {
         subject = crs.Abrv,

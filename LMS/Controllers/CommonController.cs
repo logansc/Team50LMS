@@ -118,7 +118,7 @@ namespace LMS.Controllers
                   where c.Course.Abrv == subject
                   select new
                   {
-                    season = c.SemesterSeason,//.Substring(0, c.SemesterSeason.IndexOf(" ")),
+                    season = c.SemesterSeason,
                           year = c.SemesterYear,
                     location = c.Location,
                     start = c.StartTime,
@@ -144,7 +144,7 @@ namespace LMS.Controllers
     /// <returns>The assignment contents</returns>
     public IActionResult GetAssignmentContents(string subject, int num, string season, int year, string category, string asgname)
     {
-      var query =
+      var query = (
               from a in db.Assignments
               join cat in db.AssignmentCat
               on a.AcId equals cat.AcId
@@ -159,10 +159,10 @@ namespace LMS.Controllers
               select new
               {
                 contents = a.Instructions
-              };
+              }).FirstOrDefault();
 
 
-      return Content(query.ToString());
+      return Content(query.contents.ToString());
     }
 
 
@@ -182,7 +182,7 @@ namespace LMS.Controllers
     /// <returns>The submission text</returns>
     public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
     {
-      var query =
+      var query = (
         from s in db.Submissions
         join a in db.Assignments
         on s.Assignment equals a.AsnId
@@ -202,10 +202,10 @@ namespace LMS.Controllers
         select new
         {
           contents = s.SubmissionContents
-        };
+        }).FirstOrDefault();
 
-         
-      return Content(query.ToString());
+      return query == null ? Content("") : Content(query.contents.ToString());
+      //return Content(query.contents.ToString());
     }
 
 
