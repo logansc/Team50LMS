@@ -511,7 +511,7 @@ namespace LMS.Controllers
       var max2 = query2.Max(p => p.uID);
       var max3 = query3.Max(a => a.uID);
 
-      String max = new[] { max1, max2, max2 }.Max(m => m);
+      String max = new[] { max1, max2, max3 }.Max(m => m);
 
 
       // In case there were no values in any of the tables
